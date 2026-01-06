@@ -1,17 +1,34 @@
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Trash2, Plus, Minus, ShoppingBag, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import { useCartContext } from '@/contexts/CartContext';
+import { getRestaurantById } from '@/data/restaurants';
 
 const Cart = () => {
-  const { cart, updateQuantity, removeItem, clearCart, getSubtotal } = useCartContext();
+  const { cart, updateQuantity, removeItem, clearCart, getSubtotal, validateMinimumOrder, isRestaurantClosed, restaurantStatus } = useCartContext();
+  const navigate = useNavigate();
   
   const subtotal = getSubtotal();
-  const deliveryFee = cart.items.length > 0 ? 2.99 : 0;
+  const deliveryFee = cart.items.length > 0 ? 40 : 0;
   const tax = subtotal * 0.08;
   const total = subtotal + deliveryFee + tax;
+
+  // Get restaurant details for minimum order
+  const restaurant = cart.restaurantId ? getRestaurantById(cart.restaurantId) : null;
+  const minOrder = restaurant?.minOrder || 0;
+  const isMinOrderMet = subtotal >= minOrder;
+  const restaurantClosed = isRestaurantClosed();
+
+  const handleProceedToCheckout = () => {
+    if (!isMinOrderMet) {
+      validateMinimumOrder(minOrder);
+      return;
+    }
+    navigate('/checkout');
+  };
 
   if (cart.items.length === 0) {
     return (
@@ -62,6 +79,26 @@ const Cart = () => {
           <div className="grid lg:grid-cols-3 gap-8">
             {/* Cart Items */}
             <div className="lg:col-span-2 space-y-4">
+              {/* Warning for closed restaurant */}
+              {restaurantClosed && (
+                <Alert variant="destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    {restaurant?.name} is currently closed. Your order may not be processed until they reopen.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Warning for minimum order */}
+              {!isMinOrderMet && (
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertDescription>
+                    Minimum order amount is ₹{minOrder}. Add ₹{(minOrder - subtotal).toFixed(0)} more to proceed.
+                  </AlertDescription>
+                </Alert>
+              )}
+
               {cart.items.map((item) => (
                 <div
                   key={item.menuItem.id}
@@ -111,7 +148,7 @@ const Cart = () => {
                       </div>
                       
                       <p className="font-bold text-lg">
-                        ${(item.menuItem.price * item.quantity).toFixed(2)}
+                        ₹{(item.menuItem.price * item.quantity).toFixed(0)}
                       </p>
                     </div>
                   </div>
@@ -136,28 +173,46 @@ const Cart = () => {
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Subtotal</span>
-                    <span className="font-medium">${subtotal.toFixed(2)}</span>
+                    <span className="font-medium">₹{subtotal.toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Delivery Fee</span>
-                    <span className="font-medium">${deliveryFee.toFixed(2)}</span>
+                    <span className="font-medium">₹{deliveryFee.toFixed(0)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Tax</span>
-                    <span className="font-medium">${tax.toFixed(2)}</span>
+                    <span className="font-medium">₹{tax.toFixed(0)}</span>
                   </div>
                   
                   <div className="border-t border-border pt-3">
                     <div className="flex justify-between text-lg font-bold">
                       <span>Total</span>
-                      <span>${total.toFixed(2)}</span>
+                      <span>₹{total.toFixed(0)}</span>
                     </div>
                   </div>
                 </div>
 
-                <Button variant="hero" size="lg" className="w-full mt-6">
+                <Button 
+                  variant="hero" 
+                  size="lg" 
+                  className="w-full mt-6"
+                  disabled={!isMinOrderMet || restaurantClosed}
+                  onClick={handleProceedToCheckout}
+                >
                   Proceed to Checkout
                 </Button>
+
+                {!isMinOrderMet && (
+                  <p className="text-xs text-destructive text-center mt-2">
+                    ₹{(minOrder - subtotal).toFixed(0)} more to meet minimum order
+                  </p>
+                )}
+
+                {restaurantClosed && (
+                  <p className="text-xs text-destructive text-center mt-2">
+                    Restaurant is currently closed
+                  </p>
+                )}
 
                 <p className="text-xs text-muted-foreground text-center mt-4">
                   By placing your order, you agree to our Terms of Service

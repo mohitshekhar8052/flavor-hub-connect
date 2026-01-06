@@ -1,8 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Cart, CartItem, MenuItem } from '@/types';
+import { Cart, CartItem, MenuItem, Restaurant } from '@/types';
 import { toast } from 'sonner';
+import { CART_STORAGE_KEY, CART_EXPIRY_HOURS } from '@/constants';
 
-const CART_STORAGE_KEY = 'foodie_cart';
+interface CartWithTimestamp extends Cart {
+  timestamp?: number;
+}
 
 const getInitialCart = (): Cart => {
   if (typeof window === 'undefined') {
@@ -12,7 +15,22 @@ const getInitialCart = (): Cart => {
   try {
     const stored = localStorage.getItem(CART_STORAGE_KEY);
     if (stored) {
-      return JSON.parse(stored);
+      const cartData: CartWithTimestamp = JSON.parse(stored);
+      
+      // Check cart expiry
+      if (cartData.timestamp) {
+        const hoursSinceLastUpdate = (Date.now() - cartData.timestamp) / (1000 * 60 * 60);
+        if (hoursSinceLastUpdate > CART_EXPIRY_HOURS) {
+          toast.info('Your cart has expired and was cleared');
+          return { items: [], restaurantId: null, restaurantName: null };
+        }
+      }
+      
+      return {
+        items: cartData.items,
+        restaurantId: cartData.restaurantId,
+        restaurantName: cartData.restaurantName,
+      };
     }
   } catch (error) {
     console.error('Error reading cart from localStorage:', error);
@@ -23,16 +41,43 @@ const getInitialCart = (): Cart => {
 
 export const useCart = () => {
   const [cart, setCart] = useState<Cart>(getInitialCart);
+  const [restaurantStatus, setRestaurantStatus] = useState<Restaurant | null>(null);
 
   useEffect(() => {
     try {
-      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+      const cartWithTimestamp: CartWithTimestamp = {
+        ...cart,
+        timestamp: Date.now(),
+      };
+      localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartWithTimestamp));
     } catch (error) {
       console.error('Error saving cart to localStorage:', error);
     }
   }, [cart]);
 
-  const addItem = useCallback((menuItem: MenuItem, restaurantId: string, restaurantName: string) => {
+  // Helper function to check restaurant status
+  const checkRestaurantStatus = useCallback((restaurant: Restaurant | null): boolean => {
+    if (!restaurant) return true;
+    
+    if (!restaurant.isOpen) {
+      toast.error(`${restaurant.name} is currently closed`);
+      return false;
+    }
+    
+    return true;
+  }, []);
+
+  const addItem = useCallback((
+    menuItem: MenuItem, 
+    restaurantId: string, 
+    restaurantName: string,
+    restaurant?: Restaurant
+  ) => {
+    // Check restaurant status before adding
+    if (restaurant && !checkRestaurantStatus(restaurant)) {
+      return;
+    }
+
     setCart(prevCart => {
       // Check if adding from a different restaurant
       if (prevCart.restaurantId && prevCart.restaurantId !== restaurantId) {
@@ -61,7 +106,11 @@ export const useCart = () => {
         restaurantName,
       };
     });
-  }, []);
+    
+    if (restaurant) {
+      setRestaurantStatus(restaurant);
+    }
+  }, [checkRestaurantStatus]);
 
   const removeItem = useCallback((menuItemId: string) => {
     setCart(prevCart => {
@@ -102,6 +151,19 @@ export const useCart = () => {
     return cart.items.reduce((total, item) => total + item.quantity, 0);
   }, [cart.items]);
 
+  const validateMinimumOrder = useCallback((minOrder: number): boolean => {
+    const subtotal = getSubtotal();
+    if (subtotal < minOrder) {
+      toast.error(`Minimum order amount is ₹${minOrder}. Add ₹${minOrder - subtotal} more`);
+      return false;
+    }
+    return true;
+  }, [getSubtotal]);
+
+  const isRestaurantClosed = useCallback((): boolean => {
+    return restaurantStatus !== null && !restaurantStatus.isOpen;
+  }, [restaurantStatus]);
+
   return {
     cart,
     addItem,
@@ -110,5 +172,8 @@ export const useCart = () => {
     clearCart,
     getSubtotal,
     getTotalItems,
+    validateMinimumOrder,
+    isRestaurantClosed,
+    restaurantStatus,
   };
 };

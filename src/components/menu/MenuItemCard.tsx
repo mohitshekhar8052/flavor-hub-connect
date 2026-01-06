@@ -1,22 +1,23 @@
 import { Plus, Minus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { MenuItem } from '@/types';
+import { MenuItem, Restaurant } from '@/types';
 import { useCartContext } from '@/contexts/CartContext';
 
 interface MenuItemCardProps {
   item: MenuItem;
   restaurantId: string;
   restaurantName: string;
+  restaurant?: Restaurant;
 }
 
-const MenuItemCard = ({ item, restaurantId, restaurantName }: MenuItemCardProps) => {
+const MenuItemCard = ({ item, restaurantId, restaurantName, restaurant }: MenuItemCardProps) => {
   const { cart, addItem, updateQuantity } = useCartContext();
   
   const cartItem = cart.items.find(ci => ci.menuItem.id === item.id);
   const quantity = cartItem?.quantity || 0;
 
   const handleAdd = () => {
-    addItem(item, restaurantId, restaurantName);
+    addItem(item, restaurantId, restaurantName, restaurant);
   };
 
   const handleUpdateQuantity = (newQuantity: number) => {
@@ -52,7 +53,7 @@ const MenuItemCard = ({ item, restaurantId, restaurantName }: MenuItemCardProps)
               )}
             </div>
             <p className="text-lg font-bold text-foreground mt-1">
-              ${item.price.toFixed(2)}
+              ₹{item.price.toFixed(0)}
             </p>
             <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
               {item.description}

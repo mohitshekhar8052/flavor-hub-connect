@@ -1,0 +1,124 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    function isRestaurantOwner(restaurantId) {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'restaurant' &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.restaurantId == restaurantId;
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own data, admins can read all
+      allow read: if isOwner(userId) || isAdmin();
+      // Users can create their own profile on signup
+      allow create: if isSignedIn() && request.auth.uid == userId;
+      // Users can update their own data
+      allow update: if isOwner(userId);
+      // Only admins can delete users
+      allow delete: if isAdmin();
+    }
+    
+    // Restaurants collection
+    match /restaurants/{restaurantId} {
+      // Anyone can read restaurants (public data)
+      allow read: if true;
+      // Only admins and restaurant owners can create restaurants
+      allow create: if isAdmin() || (isSignedIn() && request.resource.data.ownerId == request.auth.uid);
+      // Restaurant owners and admins can update
+      allow update: if isAdmin() || isRestaurantOwner(restaurantId);
+      // Only admins can delete restaurants
+      allow delete: if isAdmin();
+    }
+    
+    // Menu Items collection
+    match /menuItems/{menuItemId} {
+      // Anyone can read menu items (public data)
+      allow read: if true;
+      // Only restaurant owners and admins can create menu items
+      allow create: if isAdmin() || 
+                      (isSignedIn() && isRestaurantOwner(request.resource.data.restaurantId));
+      // Restaurant owners and admins can update their menu items
+      allow update: if isAdmin() || 
+                      (isSignedIn() && isRestaurantOwner(resource.data.restaurantId));
+      // Only admins and restaurant owners can delete menu items
+      allow delete: if isAdmin() || 
+                      (isSignedIn() && isRestaurantOwner(resource.data.restaurantId));
+    }
+    
+    // Orders collection
+    match /orders/{orderId} {
+      // Users can read their own orders, restaurant owners can read orders for their restaurant, admins can read all
+      allow read: if isOwner(resource.data.userId) || 
+                     isRestaurantOwner(resource.data.restaurantId) || 
+                     isAdmin();
+      // Only authenticated users can create orders for themselves
+      // Validate required fields exist
+      allow create: if isSignedIn() && 
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.keys().hasAll(['restaurantId', 'restaurantName', 'items', 'totalAmount', 'status', 'paymentStatus']) &&
+                      request.resource.data.status in ['placed', 'confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'] &&
+                      request.resource.data.paymentStatus in ['pending', 'paid', 'failed'];
+      // Users can update their own orders (for cancellation), restaurant owners can update order status
+      allow update: if isOwner(resource.data.userId) || 
+                      isRestaurantOwner(resource.data.restaurantId) || 
+                      isAdmin();
+      // Only admins can delete orders
+      allow delete: if isAdmin();
+    }
+    
+    // Addresses collection
+    match /addresses/{addressId} {
+      // Users can only read their own addresses
+      allow read: if isOwner(resource.data.userId);
+      // Users can create addresses for themselves
+      allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+      // Users can update their own addresses
+      allow update: if isOwner(resource.data.userId);
+      // Users can delete their own addresses
+      allow delete: if isOwner(resource.data.userId);
+    }
+    
+    // Reviews collection (if you add reviews in the future)
+    match /reviews/{reviewId} {
+      // Anyone can read reviews
+      allow read: if true;
+      // Only authenticated users can create reviews
+      allow create: if isSignedIn() && 
+                      request.resource.data.userId == request.auth.uid &&
+                      request.resource.data.createdAt == request.time;
+      // Users can update their own reviews
+      allow update: if isOwner(resource.data.userId);
+      // Users can delete their own reviews, admins can delete any
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+    
+    // Cart items (if stored in Firestore instead of local storage)
+    match /carts/{userId} {
+      // Users can only access their own cart
+      allow read, write: if isOwner(userId);
+    }
+    
+    // Deny all other paths by default
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

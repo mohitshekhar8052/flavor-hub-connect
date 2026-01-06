@@ -64,12 +64,12 @@ const RestaurantCard = ({ restaurant }: RestaurantCardProps) => {
 
           <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <Bike className="w-4 h-4" />
-            <span>${restaurant.deliveryFee.toFixed(2)}</span>
+            <span>₹{restaurant.deliveryFee.toFixed(0)}</span>
           </div>
         </div>
 
         <div className="mt-2 text-xs text-muted-foreground">
-          {restaurant.distance} away • Min ${restaurant.minOrder}
+          {restaurant.distance} away • Min ₹{restaurant.minOrder}
         </div>
       </div>
     </Link>

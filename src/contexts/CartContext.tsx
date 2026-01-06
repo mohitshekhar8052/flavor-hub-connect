@@ -1,15 +1,18 @@
 import React, { createContext, useContext, ReactNode } from 'react';
 import { useCart } from '@/hooks/useCart';
-import { Cart, MenuItem } from '@/types';
+import { Cart, MenuItem, Restaurant } from '@/types';
 
 interface CartContextType {
   cart: Cart;
-  addItem: (menuItem: MenuItem, restaurantId: string, restaurantName: string) => void;
+  addItem: (menuItem: MenuItem, restaurantId: string, restaurantName: string, restaurant?: Restaurant) => void;
   removeItem: (menuItemId: string) => void;
   updateQuantity: (menuItemId: string, quantity: number) => void;
   clearCart: () => void;
   getSubtotal: () => number;
   getTotalItems: () => number;
+  validateMinimumOrder: (minOrder: number) => boolean;
+  isRestaurantClosed: () => boolean;
+  restaurantStatus: Restaurant | null;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);

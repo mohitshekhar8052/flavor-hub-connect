@@ -4,13 +4,35 @@ import { Button } from '@/components/ui/button';
 import Navbar from '@/components/layout/Navbar';
 import Footer from '@/components/layout/Footer';
 import MenuItemCard from '@/components/menu/MenuItemCard';
-import { getRestaurantById, getMenuByRestaurantId } from '@/data/restaurants';
-import { useMemo } from 'react';
+import { dataProvider } from '@/lib/dataProvider';
+import { useMemo, useEffect, useState } from 'react';
+import { Restaurant, MenuItem } from '@/types';
 
 const RestaurantDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const restaurant = id ? getRestaurantById(id) : undefined;
-  const menuItems = id ? getMenuByRestaurantId(id) : [];
+  const [restaurant, setRestaurant] = useState<Restaurant | undefined>();
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!id) return;
+      try {
+        setLoading(true);
+        const [restaurantData, menuData] = await Promise.all([
+          dataProvider.getRestaurantById(id),
+          dataProvider.getMenuByRestaurantId(id),
+        ]);
+        setRestaurant(restaurantData || undefined);
+        setMenuItems(menuData);
+      } catch (error) {
+        console.error('Error fetching restaurant data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [id]);
 
   const menuByCategory = useMemo(() => {
     return menuItems.reduce((acc, item) => {
@@ -21,6 +43,18 @@ const RestaurantDetail = () => {
       return acc;
     }, {} as Record<string, typeof menuItems>);
   }, [menuItems]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex flex-col bg-background">
+        <Navbar />
+        <main className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!restaurant) {
     return (
@@ -96,7 +130,7 @@ const RestaurantDetail = () => {
                 <Bike className="w-5 h-5 text-secondary-foreground" />
                 <div>
                   <p className="text-xs text-muted-foreground">Delivery Fee</p>
-                  <p className="font-bold text-secondary-foreground">${restaurant.deliveryFee.toFixed(2)}</p>
+                  <p className="font-bold text-secondary-foreground">₹{restaurant.deliveryFee.toFixed(0)}</p>
                 </div>
               </div>
             </div>
@@ -124,6 +158,7 @@ const RestaurantDetail = () => {
                       item={item}
                       restaurantId={restaurant.id}
                       restaurantName={restaurant.name}
+                      restaurant={restaurant}
                     />
                   ))}
                 </div>

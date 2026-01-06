@@ -71,6 +71,6 @@ export interface Order {
   status: 'placed' | 'confirmed' | 'preparing' | 'out_for_delivery' | 'delivered' | 'cancelled';
   paymentStatus: 'pending' | 'paid' | 'failed';
   deliveryAddress: Address;
-  createdAt: string;
+  createdAt: Date;
   estimatedDelivery: string;
 }
