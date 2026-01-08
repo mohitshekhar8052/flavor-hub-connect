@@ -130,7 +130,7 @@ const Login = () => {
                 <Input
                   id="name"
                   type="text"
-                  placeholder="John Doe"
+                  placeholder="Your Name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className={`h-12 ${errors.name ? 'border-destructive' : ''}`}
@@ -148,7 +148,7 @@ const Login = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
+                  placeholder="your@email.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`h-12 pl-10 ${errors.email ? 'border-destructive' : ''}`}

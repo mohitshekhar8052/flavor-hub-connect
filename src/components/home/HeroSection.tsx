@@ -1,6 +1,5 @@
 import { ArrowRight, Clock, Star, Truck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
 
 const HeroSection = () => {
   return (
@@ -30,13 +29,25 @@ const HeroSection = () => {
             </p>
 
             <div className="flex flex-wrap gap-4">
-              <Link to="/restaurants">
-                <Button variant="hero" size="xl">
-                  Order Now
-                  <ArrowRight className="w-5 h-5 ml-1" />
-                </Button>
-              </Link>
-              <Button variant="outline" size="xl">
+              <Button 
+                variant="hero" 
+                size="xl"
+                onClick={() => {
+                  const restaurantsSection = document.getElementById('all-restaurants');
+                  restaurantsSection?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Order Now
+                <ArrowRight className="w-5 h-5 ml-1" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="xl"
+                onClick={() => {
+                  const restaurantsSection = document.getElementById('all-restaurants');
+                  restaurantsSection?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
                 View Restaurants
               </Button>
             </div>
